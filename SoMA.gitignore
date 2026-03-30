@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+.vscode/
+high_score.csv
