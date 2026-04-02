@@ -6,7 +6,6 @@ import sys
 import datetime
 import random
 import csv
-import string
 
 # ---------------------------
 # Utilities
@@ -44,7 +43,7 @@ def get_player_name() -> str:
 def display_welcome():
     clear()
     print("\n".join(welcome_message))
-    time.sleep(4)
+    time.sleep(2)
 
 def display_menu():
     clear()
@@ -71,7 +70,7 @@ def save_high_score(name: str, points: int) -> None:
 
         if not file_exists:
             writer.writerow(["Name", "Score", "Date", "Time"])
-
+            
         writer.writerow([name, points, date, time_stamp])
 
     print(f"\nScore saved! Your current score is: {points}")
@@ -108,52 +107,81 @@ def read_high_scores() -> list[list[str]]:
 # ---------------------------
 # Game Logic
 # ---------------------------
-def _build_question_set() -> list[tuple[str, str]]:
-    questions = [
-        ("What is the name of the main character?", "maria"),
-        ("Who composed The Sound of Music?", "rodgers"),
-        ("What mountain range is featured?", "alps"),
-    ]
-    random.shuffle(questions)
-    return questions[:10]
-
-
-def _ask_single_question(question: str, correct_answer: str) -> bool:
-    answer = input(f"\n{question} ").lower().strip()
-    clean_answer = answer.translate(str.maketrans("", "", string.punctuation))
-    is_correct = correct_answer in clean_answer.split()
-
-    if is_correct:
-        print("Correct!")
-    else:
-        print(f"Incorrect! Answer: {correct_answer}")
-
-    return is_correct
-
-
-def _play_round(name: str) -> int:
+def _play_round(name: str):
     clear()
     print("\nStarting game for mom")
     time.sleep(1)
 
-    questions = _build_question_set()
+    questions = load_questions_from_csv("questions.csv")
+    random.shuffle(questions)
+    questions = list[dict[str, str]](questions[:10])
+
     points = 0
 
-    for question, correct_answer in questions:
-        is_correct = _ask_single_question(question, correct_answer)
+    for question in questions:
+        is_correct = _ask_single_question(question)
         points = scoring_points(is_correct, points)
 
     print(f"\n{name}, your final score is {points}.")
     save_high_score(name, points)
-    return points
+    return questions
 
+def load_questions_from_csv(filename: str) -> list[dict[str, str]]:
+    questions: list[dict[str, str]] = []
+    with open(filename, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        questions.extend(reader)
+    return questions
+
+def _ask_single_question(q: dict[str, str]) -> bool:
+    print(f"\n{q['question']}")
+
+    # Build list of (letter, answer)
+    options = [
+        ("A", q["A"]),
+        ("B", q["B"]),
+        ("C", q["C"]),
+        ("D", q["D"]),
+    ]
+
+    # Find correct answer text
+    correct_text = q[q["correct"]]
+
+    # Shuffle options
+    random.shuffle(options)
+
+    # Display shuffled options + track new correct letter
+    letter_map = {}
+    new_correct_letter = ""
+
+    for i, (_, text) in enumerate(options):
+        letter = chr(65 + i)  # A, B, C, D
+        letter_map[letter] = text
+        print(f"{letter}) {text}")
+
+        if text == correct_text:
+            new_correct_letter = letter
+
+    # Get user input
+    answer = ""
+    while answer not in ("a", "b", "c", "d"):
+        answer = input("Your answer (A/B/C/D): ").lower()
+
+    is_correct = answer.upper() == new_correct_letter
+
+    if is_correct:
+        print("Correct! 🎉")
+    else:
+        print(f"Incorrect! Answer: {new_correct_letter}) {letter_map[new_correct_letter]}")
+
+    time.sleep(1)
+    return is_correct
 
 def _ask_play_again() -> bool:
     choice = ""
     while choice not in ("y", "n"):
         choice = input("\nPlay again? (y/n): ").lower()
     return choice == "y"
-
 
 def play_game(name: str):
     while True:
