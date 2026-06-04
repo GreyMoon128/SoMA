@@ -1,0 +1,8 @@
+import urllib.request
+import os
+
+def download_music():
+    filename = "theme.mp3"
+    if not os.path.exists(filename):
+        url = "https://youtube.com/clip/UgkxGAz5h_xEEG2CDtMGSNaIAJlSmxTNejxP?si=hmeTUIdmZg6azqYM"
+        urllib.request.urlretrieve(url, filename)

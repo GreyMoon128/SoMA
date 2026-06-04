@@ -4,11 +4,17 @@ import random
 import csv
 import tkinter as tk
 from tkinter import messagebox
-from typing import List, Dict
+# from typing import List, Dict
+from typing import Dict, List
+import pygame
+# import urllib.request
+from PIL import Image, ImageTk
+# from tkinter import PhotoImage
 
 high_score_file = "high_score.csv"
 
 # cSpell:words pady wraplength
+# cSpell:words pady wraplength relx rely
 
 # ---------------------------
 # High Score
@@ -16,13 +22,10 @@ high_score_file = "high_score.csv"
 def save_high_score(name: str, points: int):
     if points <= 0:
         return
-
     now = datetime.datetime.now()
     date = now.strftime("%B %d, %Y")
     time_stamp = now.strftime("%I:%M %p")
-
     file_exists = os.path.exists(high_score_file)
-
     with open(high_score_file, "a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         if not file_exists:
@@ -46,26 +49,79 @@ def read_high_scores() -> List[List[str]]:
 def load_questions_from_csv(filename: str) -> List[Dict[str, str]]:
     if not os.path.exists(filename):
         return []
-    with open(filename, "r", encoding="utf-8") as f:
-        return list(csv.DictReader(f))
 
-# ---------------------------
-# GUI App
-# ---------------------------
+    with open(filename, "r", encoding="utf-8") as f:
+        return [dict(row) for row in csv.DictReader(f)]
+# # ---------------------------
+# def download_music():
+#     filename = "theme.mp3"
+#     if not os.path.exists(filename):
+#         url = "https://youtube.com/clip/UgkxGAz5h_xEEG2CDtMGSNaIAJlSmxTNejxP?si=hmeTUIdmZg6azqYM"
+#         urllib.request.urlretrieve(url, filename)
+
 class TriviaApp:
     def __init__(self, root: tk.Tk):
+        # ---------------------------
+        # Basic setup
+        # ---------------------------
         self.root: tk.Tk = root
+        self.root.title("Sound of Music Trivia")
+        self.root.geometry("500x400")
+
+        # Game state
         self.name: str = ""
         self.points: int = 0
         self.questions: List[Dict[str, str]] = []
         self.current_q: int = 0
         self.correct_letter: str = ""
         self.answer_map: Dict[str, str] = {}
-        self.main_frame = tk.Frame(self.root)
-        self.main_frame.pack(fill="both", expand=True)
-        self.selected: tk.StringVar = tk.StringVar(value="")
-        self.show_welcome()
 
+        # Colors
+        self.bg_color: str = "#f4e4c1"
+        self.button_color: str = "#8b0000"
+        self.text_color: str = "#2c2c2c"
+
+        # ---------------------------
+        # Background Image
+        # ---------------------------
+        bg_image: Image.Image = Image.open("SoMAPic.jpg")
+        # bg_image = bg_image.resize((500, 400))
+
+        self.bg_photo: ImageTk.PhotoImage = ImageTk.PhotoImage(bg_image)
+
+        self.bg_label: tk.Label = tk.Label(self.root, image=self.bg_photo)
+        self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+
+        # self.bg_label.image_types: PhotoImage = self.bg_photo() -> tuple[str[str]]
+
+        # ---------------------------
+        # Main Frame (on top of image)
+        # ---------------------------
+        self.main_frame: tk.Frame = tk.Frame(self.root, bg=self.bg_color)
+        self.main_frame.place(relx=0.5, rely=0.5, anchor="center")
+
+        # ---------------------------
+        # Tkinter variables
+        # ---------------------------
+        self.selected: tk.StringVar = tk.StringVar(value="")
+
+        # ---------------------------
+        # Music setup
+        # ---------------------------
+        try:
+            pygame.mixer.init()
+
+            if os.path.exists("SoMASong.mp3"):
+                pygame.mixer.music.load("SoMASong.mp3")
+                pygame.mixer.music.play(-1)
+
+        except Exception as e:
+            print("Music error:", e)
+
+    # ---------------------------
+    # Start UI
+    # ---------------------------
+        self.show_welcome()
     def clear_screen(self):
         for widget in self.main_frame.winfo_children():
             widget.destroy()
@@ -75,12 +131,31 @@ class TriviaApp:
     # ---------------------------
     def show_welcome(self):
         self.clear_screen()
-        tk.Label(self.main_frame, text="Sound of Music Trivia", font=("Arial", 18)).pack(pady=20)
-        tk.Label(self.main_frame, text="Enter your name:").pack()
+        tk.Label(
+            self.main_frame, 
+            text="Sound of Music Trivia", 
+            font=("Arial", 18),
+            bg=self.bg_color,
+            fg=self.text_color
+        ).pack(pady=20)
+        tk.Label(
+            self.main_frame, 
+            text="Enter your name:"
+        ).pack()
         self.name_entry = tk.Entry(self.main_frame)
         self.name_entry.pack(pady=5)
-        tk.Button(self.main_frame, text="Start", command=self.start_game).pack(pady=10)
-        tk.Button(self.main_frame, text="High Scores", command=self.show_high_scores).pack(pady=5)
+        tk.Button(
+            self.main_frame, 
+            text="Start",
+            bg=self.button_color,
+            fg="white",
+            command=self.start_game
+        ).pack(pady=10)
+        tk.Button(
+            self.main_frame, 
+            text="High Scores", 
+            command=self.show_high_scores
+        ).pack(pady=5)
 
     # ---------------------------
     # Start Game
@@ -90,7 +165,10 @@ class TriviaApp:
         if not self.name:
             messagebox.showwarning("Error", "Please enter your name")
             return
-        self.questions = load_questions_from_csv("questions.csv")
+        self.questions = load_questions_from_csv("questions.csv") or []
+        
+        print("Questions loaded:", len(self.questions))
+        print(self.questions[:2])
         if not self.questions:
             messagebox.showerror("Error", "No questions found!")
             return
@@ -120,7 +198,7 @@ class TriviaApp:
             font=("Arial", 10)
         ).pack()
 
-        question_text = q.get("question", "Missing question")
+        question_text = q.get("question") or q.get("Question") or "Missing question"        
         tk.Label(
             self.main_frame,
             text=question_text,
